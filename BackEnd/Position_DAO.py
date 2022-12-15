@@ -1,5 +1,8 @@
 from Position import Position
 import json 
+import serial
+import time
+import re
 
 class Position_DAO:
     def __init__(self):
@@ -7,6 +10,7 @@ class Position_DAO:
         self.occupied = 0
         self.free = 32
         self.reserverd=0
+        self.can_open=True
 
     #Function to create a new parking position
     def new_position(self,id,user,state,alarm,attack):
@@ -22,6 +26,23 @@ class Position_DAO:
                 self.free+=1
                 print("Parqueo Reservado por el usuario "+str(user)+" Libre nuevamente. ")
                 return True
+
+    #Set free the position, but verify if the user has the alarm active.
+    def set_parking_free(self,id,user):
+        for position in self.positions:
+            if position.user==user:
+                if position.alarm=="on":
+                    position.attack="on"
+                    self.can_open=False
+                else:
+                    position.state="free"
+                    self.occupied-=1
+                    self.free+=1
+                    position.user=-1
+                    position.attack="off"
+
+
+
     
     def set_parking_reserved(self,id,user):
         for position in self.positions:
@@ -89,3 +110,17 @@ class Position_DAO:
         return json.dumps([Position.dump() for Position in self.positions if Position.id <=16]) 
     def return_level_two(self):
         return json.dumps([Position.dump() for Position in self.positions if Position.id >=17]) 
+
+    def update_arduino_data(self):
+        port=serial.Serial('COM2',9600)
+        time.sleep(1) 
+        result_string=""
+        for position in self.positions:
+            if position.state=="free":
+                result_string+=str(position.id)+"-v,"
+            elif  position.state=="reserved":
+                result_string+=str(position.id)+"-a"
+            elif  position.state=="occupied":
+                result_string+=str(position.id)+"-r"
+        port.write(result_string.encode("utf-8"))
+

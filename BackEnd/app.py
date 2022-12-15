@@ -56,7 +56,7 @@ def reserved(id):
 def occupied(id):
     response={}
     user=request.json['user']
-    position_handler.set_parking_reserved(int(id.split("=")[1]),int(user))
+    position_handler.set_parking_occupied(int(id.split("=")[1]),int(user))
     return response
 
 @app.route('/decline-reserved/<id>',methods=['POST'])
@@ -84,6 +84,10 @@ def level_two():
 
 @app.route('/analytics',methods=['GET'])
 def analytics():
+    return position_handler.return_parking_stats()
+
+@app.route('/refresh',methods=['GET'])
+def refresh():
     return position_handler.return_parking_stats()
 
 @app.route('/alarm-stats/<user>',methods=['GET'])
