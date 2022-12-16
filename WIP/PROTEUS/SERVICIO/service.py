@@ -15,11 +15,11 @@ class Service:
 
 
     def writeMASTER(self, msg):
-        self.serMASTER.write(msg.encode('utf-8'))
+        self.serMASTER.write(msg.encode('utf-8')+b"\r\n")
         time.sleep(0.1)
     
     def writeLDR(self, msg):
-        self.serLDR.write(msg.encode('utf-8'))
+        self.serLDR.write(msg.encode('utf-8')+b"\r\n")
         time.sleep(0.1)
     
     def writeLED(self, msg):
@@ -59,6 +59,7 @@ class API:
     def __init__(self):
         self.data = ""
         self.base_url = "http://3.144.214.162:5000/"
+        self.parqueos_reservados = 0
     
     def get_all_reserved(self):
         url ="get-all-reserved"
@@ -68,6 +69,8 @@ class API:
             response_API = requests.get(self.base_url+url)
             data = response_API.text
             parse = json.loads(data)
+            self.parqueos_reservados = len(parse)
+            
 
             lista_reservados  =[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
             for p in parse:
@@ -140,8 +143,11 @@ class Monitor:
         self.service = service
         self.thread = threading.Thread(target=self.run)
         self.thread.start()
-        self.last_ldr = "LDR;00000000000000000000000000000000";
-        self.last_led = "LED;00000000000000000000000000000000";
+        self.last_ldr = "LDR;00000000000000000000000000000000"
+        self.last_led = "LED;00000000000000000000000000000000"
+        self.parqueos_reservados= 0
+        self.parqueos_ocupados = 0 
+        self.parqueos_disponibles = 0 # 32 - (reservados + ocupados)
         self.api = API()
 
     def run(self):
@@ -173,9 +179,17 @@ class Monitor:
             print("API CHECKs")
             self.compareLED("LED;"+self.api.get_all_reserved())
             self.compareAlarm(self.api.get_parking_alarm())
+            self.parqueos_reservados = self.api.parqueos_reservados
+            self.parqueos_disponibles = 32 - (self.parqueos_reservados + self.parqueos_ocupados)
+            
+            data_parqueos = str(self.parqueos_disponibles)+";"+str(self.parqueos_reservados)+";"+str(self.parqueos_ocupados)
+            print("PARQUEOS: "+data_parqueos)
+            self.service.writeMASTER("P;"+data_parqueos)
             time.sleep(1)
     
     def compareLDR(self, entrada_ldr):
+        self.parqueos_ocupados = entrada_ldr.count("1")
+        
         print("\t-Comparando LDR")
         data_to_send = "";
         parqueos_diferentes = []
@@ -228,6 +242,7 @@ class Monitor:
                 if data_to_send[i] == "1":
                     parqueos_diferentes.append(i+1)
             print("\t\t- Data to send: ", data_to_send, " Parqueos reservados: ", parqueos_diferentes)
+            
             self.service.writeLED(entrada_led)    
             self.last_led = entrada_led
         else:
