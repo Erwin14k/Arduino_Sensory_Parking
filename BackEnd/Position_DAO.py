@@ -66,6 +66,9 @@ class Position_DAO:
                 print("Parqueo "+str(id)+" ocupado por el usuario: "+str(user))
                 return True
 
+                
+
+
     def set_parking_occupied_by_reserved(self,id,user):
         for position in self.positions:
             if position.user==user:
