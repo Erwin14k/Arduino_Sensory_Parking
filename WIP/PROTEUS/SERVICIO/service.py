@@ -6,7 +6,7 @@ import time
 class Service:
     def __init__(self):
         self.serMASTER = serial.Serial('COM2', 9600, timeout=1)
-        self.serLDR = serial.Serial('COM4', 9600, timeout=1)
+        self.serLDR = serial.Serial('COM8', 9600, timeout=1)
         self.serLED = serial.Serial('COM6', 9600, timeout=1)
 
         self.serMASTER.flush()
@@ -86,16 +86,42 @@ class API:
 
     def post_parking_change(self, parqueos):
         url = "change-parking-proteus"
+        response = ""
         for parqueo in parqueos:
             body = {
-                "id": parqueo
+                "id": int(parqueo)
             }
 
-            response_API = requests.post(self.base_url+url, json=body)
+            try:
+                response_API = requests.post(self.base_url+url, json=body)
+                print(response_API.text)
+                response += response_API.text
+            except:
+                pass
+        return response
 
-            print(response_API.text)
+    def get_parking_alarm(self):
+        url = "get-alarm-status"
+        data = ""
+        converted_data = ""
+        try:
+            response_API = requests.get(self.base_url+url)
+            data = response_API.text
+            parse = json.loads(data)
+            
+            index =-1;
+            converted_data = str(parse[0]) + ";" +str(parse[1])
+        
 
-        return response_API.text
+            print("ALARM DATA: "+converted_data)
+            
+
+            return converted_data
+        except Exception as e:
+            print("Error: "+str(e))
+            return "0;0"
+        
+        
 
     
     
@@ -144,11 +170,9 @@ class Monitor:
                     self.liberarReserva(comandos[1])
 
             
-            print("API CHECK")
+            print("API CHECKs")
             self.compareLED("LED;"+self.api.get_all_reserved())
-            
-            # print("Enviando Espacios Reservados: "+espacios_reservados)
-            # self.service.writeLED("LED;"+espacios_reservados)
+            self.compareAlarm(self.api.get_parking_alarm())
             time.sleep(1)
     
     def compareLDR(self, entrada_ldr):
@@ -169,9 +193,12 @@ class Monitor:
 
             for i in range(len(data_to_send)):
                 if data_to_send[i] == "1":
-                    parqueos_diferentes.append(i)
+                    parqueos_diferentes.append(i+1)
             print("\t\t- Data to send: ", data_to_send, " Parqueos diferentes: ", parqueos_diferentes)
 
+            # iterar parqueos diferentes [2,4,6]
+            
+            self.api.post_parking_change(parqueos_diferentes)
             
 
 
@@ -199,24 +226,30 @@ class Monitor:
 
             for i in range(len(data_to_send)):
                 if data_to_send[i] == "1":
-                    parqueos_diferentes.append(i)
+                    parqueos_diferentes.append(i+1)
             print("\t\t- Data to send: ", data_to_send, " Parqueos reservados: ", parqueos_diferentes)
-            
+            self.service.writeLED(entrada_led)    
             self.last_led = entrada_led
-            
-
         else:
             print("\t\t- LED sin cambios")
 
-        self.service.writeLED(entrada_led)
+
+    def compareAlarm(self, status):
+        # if(status == "1;0"):
+
+        # else{
+            
+        # }
+        self.service.writeLED(str(status))
+
+
+    
+        
+        
         
 
+        
 
-    def agregarReserva(self, parqueo):
-        print("agregarReserva", parqueo)
-
-    def liberarReserva(self, parqueo):
-        print("liberarReserva", parqueo)
                 
 
 # main
